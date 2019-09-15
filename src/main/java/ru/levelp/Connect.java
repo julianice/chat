@@ -1,5 +1,8 @@
 package ru.levelp;
 
+import javax.persistence.EntityManager;
+import javax.persistence.EntityManagerFactory;
+import javax.persistence.Persistence;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -16,6 +19,8 @@ public class Connect extends Thread implements Listener {
     private BufferedReader in;
     private BufferedWriter out;
     public static List<Connect> connectList;
+    private static EntityManagerFactory ef;
+
 
     public Connect(Socket connection) {
         socket = connection;
@@ -39,6 +44,10 @@ public class Connect extends Thread implements Listener {
         String name = null;
         try {
             name = in.readLine();
+
+            out.write(name + "\n");
+            out.flush();
+
             synchronized (connectList) {
                 for (Connect connect : connectList) {
                     connect.sendMessage(name + " joined us");
@@ -53,6 +62,12 @@ public class Connect extends Thread implements Listener {
                 word = in.readLine();
                 String send = name + ": " + word;
                 System.out.println(send);
+                Message msg = new Message(name, word);
+
+                EntityManager manager = ef.createEntityManager();
+                new DBTransaction(manager, msg);
+                Message found = manager.find(Message.class, 1);
+                System.out.println("I FOUNDDDDD      " + found.toString());
 
                 synchronized (connectList) {
                     for (Connect connect : connectList) {
@@ -75,20 +90,25 @@ public class Connect extends Thread implements Listener {
         }
     }
 
-    public void registerListener(Listener listener) {}
+    public void registerListener(Listener listener) {
+    }
 
     public static void main(String[] args) throws Exception {
+        ef = Persistence.createEntityManagerFactory("TestPersistenceUnit");
+
         ServerSocket serverSocket = new ServerSocket(SERVER_PORT);
         connectList = Collections.synchronizedList(new ArrayList<>());
         ExecutorService pool = Executors.newFixedThreadPool(2);
         try {
             while (true) {
                 Socket socket = serverSocket.accept();
-                Connect connect = new Connect(socket);
-                pool.execute(connect);
+                pool.execute(() -> {
+                            Connect connect = new Connect(socket);
+                            connectList.add(connect);
+                        }
+                );
                 //Почему при добавлении 3 соединений sout пишет, что pool size = 2?
                 System.out.println(pool.toString());
-                connectList.add(connect);
             }
         } finally {
             serverSocket.close();
@@ -102,3 +122,4 @@ public class Connect extends Thread implements Listener {
 //TODO listener
 //TODO do not send to yourself
 //TODO ExecutorService
+//TODO сохранять в БД и вытаскивать при старте записи
