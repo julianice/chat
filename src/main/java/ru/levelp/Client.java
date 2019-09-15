@@ -3,7 +3,7 @@ package ru.levelp;
 import java.io.*;
 import java.net.Socket;
 
-import static ru.levelp.Server.SERVER_PORT;
+import static ru.levelp.Connect.SERVER_PORT;
 
 public class Client {
     private Socket socket;
@@ -30,7 +30,6 @@ public class Client {
             } catch (IOException e1) {
                 e1.printStackTrace();
             }
-
         }
     }
 

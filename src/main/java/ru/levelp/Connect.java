@@ -4,15 +4,19 @@ import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 
-public class Server extends Thread {
+public class Server extends Thread implements Listener{
     public static final int SERVER_PORT = 9994;
     private Socket socket;
     private BufferedReader in;
     private BufferedWriter out;
     public static List<Server> serverList;
+
 
     public Server(Socket connection) {
         socket = connection;
@@ -36,14 +40,13 @@ public class Server extends Thread {
         String name = null;
         try {
             name = in.readLine();
-//            try {
-//                out.write(name + "\n");
-//                out.flush();
-//            } catch (IOException ignored) {}
-        } catch (IOException e) {
+            synchronized (serverList) {
+                for (Server sL : serverList) {
+                    sL.sendMessage("Joined us ");
+                }
+            }        } catch (IOException e) {
             e.printStackTrace();
         }
-        System.out.println("It is " + name);
         while (true) {
             String word;
             try {
@@ -51,10 +54,11 @@ public class Server extends Thread {
                 String send = name + ": " + word;
                 System.out.println(send);
 
+            synchronized (serverList) {
                 for (Server sL : serverList) {
-                    sL.out.write(send + "\n");
-                    sL.out.flush();
+                    sL.sendMessage(send);
                 }
+            }
 
             } catch (IOException e) {
                 e.printStackTrace();
@@ -62,20 +66,39 @@ public class Server extends Thread {
         }
     }
 
+    @Override
+    public void sendMessage(String msg) {
+        try {
+            out.write(msg + "\n");
+            out.flush();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
 
     public static void main(String[] args) throws Exception {
-        ServerSocket server = new ServerSocket(SERVER_PORT);
-        serverList = new ArrayList<>();
+        ServerSocket serverSocket = new ServerSocket(SERVER_PORT);
+        serverList = Collections.synchronizedList(new ArrayList<>());
+        ExecutorService pool = Executors.newFixedThreadPool(2);
         try {
             while (true) {
-                Socket client = server.accept();
-                Server serverObject = new Server(client);
-                serverList.add(serverObject);
+                Socket socket = serverSocket.accept();
+                Server server = new Server(socket);
+                pool.execute(server);
+                //Почему при добавлении 3 соединений sout пишет, что pool size = 2?
+                System.out.println(pool.toString());
+                serverList.add(server);
             }
         } finally {
-            server.close();
+            serverSocket.close();
         }
     }
 }
 
 //TODO handle exceptions
+//TODO synchronized synchronizedList it's ok? ------ OK
+//TODO DB
+//TODO listener
+//TODO do not send to yourself
+//TODO ExecutorService
