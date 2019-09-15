@@ -10,15 +10,14 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 
-public class Server extends Thread implements Listener{
+public class Connect extends Thread implements Listener {
     public static final int SERVER_PORT = 9994;
     private Socket socket;
     private BufferedReader in;
     private BufferedWriter out;
-    public static List<Server> serverList;
+    public static List<Connect> connectList;
 
-
-    public Server(Socket connection) {
+    public Connect(Socket connection) {
         socket = connection;
         try {
             in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
@@ -40,11 +39,12 @@ public class Server extends Thread implements Listener{
         String name = null;
         try {
             name = in.readLine();
-            synchronized (serverList) {
-                for (Server sL : serverList) {
-                    sL.sendMessage("Joined us ");
+            synchronized (connectList) {
+                for (Connect connect : connectList) {
+                    connect.sendMessage(name + " joined us");
                 }
-            }        } catch (IOException e) {
+            }
+        } catch (IOException e) {
             e.printStackTrace();
         }
         while (true) {
@@ -54,12 +54,11 @@ public class Server extends Thread implements Listener{
                 String send = name + ": " + word;
                 System.out.println(send);
 
-            synchronized (serverList) {
-                for (Server sL : serverList) {
-                    sL.sendMessage(send);
+                synchronized (connectList) {
+                    for (Connect connect : connectList) {
+                        connect.sendMessage(send);
+                    }
                 }
-            }
-
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -76,19 +75,20 @@ public class Server extends Thread implements Listener{
         }
     }
 
+    public void registerListener(Listener listener) {}
 
     public static void main(String[] args) throws Exception {
         ServerSocket serverSocket = new ServerSocket(SERVER_PORT);
-        serverList = Collections.synchronizedList(new ArrayList<>());
+        connectList = Collections.synchronizedList(new ArrayList<>());
         ExecutorService pool = Executors.newFixedThreadPool(2);
         try {
             while (true) {
                 Socket socket = serverSocket.accept();
-                Server server = new Server(socket);
-                pool.execute(server);
+                Connect connect = new Connect(socket);
+                pool.execute(connect);
                 //Почему при добавлении 3 соединений sout пишет, что pool size = 2?
                 System.out.println(pool.toString());
-                serverList.add(server);
+                connectList.add(connect);
             }
         } finally {
             serverSocket.close();

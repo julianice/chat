@@ -1,5 +1,5 @@
 package ru.levelp;
 
-public interface ChatListener {
+public interface Listener {
     public void sendMessage(String msg);
 }
