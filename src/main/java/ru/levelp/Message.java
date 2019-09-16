@@ -12,9 +12,16 @@ public class Message {
     @GeneratedValue
     private int id;
 
-    @ManyToOne(optional = false)
-    private Client clientName;
+    @Column(nullable = false)
+    private String clientName;
 
     @Column(nullable = false)
     private String message;
+
+    public Message(){}
+
+    public Message(String name, String message){
+        this.clientName = name;
+        this.message = message;
+    }
 }

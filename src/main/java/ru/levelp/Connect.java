@@ -42,10 +42,12 @@ public class Connect extends Thread implements Listener {
     @Override
     public void run() {
         String name = null;
+        EntityManager manager = ef.createEntityManager();
         try {
             name = in.readLine();
+            lastMessages(manager);
 
-            out.write(name + "\n");
+            out.write(lastMessages(manager));
             out.flush();
 
             synchronized (connectList) {
@@ -64,10 +66,8 @@ public class Connect extends Thread implements Listener {
                 System.out.println(send);
                 Message msg = new Message(name, word);
 
-                EntityManager manager = ef.createEntityManager();
                 new DBTransaction(manager, msg);
-                Message found = manager.find(Message.class, 1);
-                System.out.println("I FOUNDDDDD      " + found.toString());
+
 
                 synchronized (connectList) {
                     for (Connect connect : connectList) {
@@ -88,6 +88,11 @@ public class Connect extends Thread implements Listener {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    public String lastMessages(EntityManager manager) {
+        List<Message> l = manager.createQuery("from Messages ", Message.class).getResultList();
+        return l.toString();
     }
 
     public void registerListener(Listener listener) {
