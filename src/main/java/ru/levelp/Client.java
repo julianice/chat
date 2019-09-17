@@ -21,15 +21,8 @@ public class Client {
             setName();
             new ReadThread().start();
             new WriteThread().start();
-
         } catch (IOException e) {
-            try {
-                socket.close();
-                in.close();
-                out.close();
-            } catch (IOException e1) {
-                e1.printStackTrace();
-            }
+            closeClient();
         }
     }
 
@@ -51,16 +44,13 @@ public class Client {
             try {
                 while (true) {
                     str = in.readLine();
-                    System.out.println(str);
+                    if (str == null) {
+                        closeClient();
+                    } else
+                        System.out.println(str);
                 }
             } catch (IOException e) {
-                try {
-                    socket.close();
-                    out.close();
-                    in.close();
-                } catch (IOException e1) {
-                    e1.printStackTrace();
-                }
+                closeClient();
             }
         }
     }
@@ -75,16 +65,21 @@ public class Client {
                     out.write(word + "\n");
                     out.flush();
                 } catch (IOException e) {
-                    try {
-                        socket.close();
-                        out.close();
-                        in.close();
-                    } catch (IOException e1) {
-                        e1.printStackTrace();
-                    }
+                    closeClient();
                 }
             }
         }
+    }
+
+    public void closeClient() {
+            System.out.println("Socket is closed");
+            try {
+                socket.close();
+                in.close();
+                out.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
     }
 
     public static void main(String[] args) throws IOException {

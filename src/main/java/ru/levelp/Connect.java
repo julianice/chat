@@ -21,7 +21,6 @@ public class Connect extends Thread implements Listener {
     public static List<Connect> connectList;
     private static EntityManagerFactory ef;
 
-
     public Connect(Socket connection) {
         socket = connection;
         try {
@@ -45,34 +44,26 @@ public class Connect extends Thread implements Listener {
         EntityManager manager = ef.createEntityManager();
         try {
             name = in.readLine();
-            lastMessages(manager);
-
-            out.write(lastMessages(manager));
+            out.write(sendLastMessages(manager));
             out.flush();
 
             synchronized (connectList) {
-                for (Connect connect : connectList) {
-                    connect.sendMessage(name + " joined us");
-                }
+                sendMessage(name + " joined us");
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
         while (true) {
-            String word;
+            String message;
             try {
-                word = in.readLine();
-                String send = name + ": " + word;
-                System.out.println(send);
-                Message msg = new Message(name, word);
+                message = in.readLine();
+                String send = name + ": " + message;
+                Message msg = new Message(name, message);
 
                 new DBTransaction(manager, msg);
 
-
                 synchronized (connectList) {
-                    for (Connect connect : connectList) {
-                        connect.sendMessage(send);
-                    }
+                    sendMessage(send);
                 }
             } catch (IOException e) {
                 e.printStackTrace();
@@ -82,25 +73,30 @@ public class Connect extends Thread implements Listener {
 
     @Override
     public void sendMessage(String msg) {
-        try {
-            out.write(msg + "\n");
-            out.flush();
-        } catch (IOException e) {
-            e.printStackTrace();
+        for (Connect connect : connectList) {
+            if (!connect.equals(this))
+            try {
+                connect.out.write(msg + "\n");
+                connect.out.flush();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
     }
 
-    public String lastMessages(EntityManager manager) {
-        List<Message> l = manager.createQuery("from Messages ", Message.class).getResultList();
-        return l.toString();
-    }
-
-    public void registerListener(Listener listener) {
+    public String sendLastMessages(EntityManager manager) {
+        List<Message> messageList = manager.createQuery("from Messages ", Message.class).getResultList();
+        StringBuffer history = new StringBuffer();
+        history.append("Last messages in chat: " + "\n");
+        for (Message message : messageList) {
+            history.append(message.getClientName() + ": " + message.getMessage() + "\n");
+        }
+        history.append("**************************************" + "\n");
+        return String.valueOf(history);
     }
 
     public static void main(String[] args) throws Exception {
         ef = Persistence.createEntityManagerFactory("TestPersistenceUnit");
-
         ServerSocket serverSocket = new ServerSocket(SERVER_PORT);
         connectList = Collections.synchronizedList(new ArrayList<>());
         ExecutorService pool = Executors.newFixedThreadPool(2);
@@ -123,7 +119,7 @@ public class Connect extends Thread implements Listener {
 
 //TODO handle exceptions
 //TODO synchronized synchronizedList it's ok? ------ OK
-//TODO DB
+//TODO DB  ----- ok
 //TODO listener
 //TODO do not send to yourself
 //TODO ExecutorService
