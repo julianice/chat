@@ -54,15 +54,15 @@ public class Client extends Thread implements Listener {
             e.printStackTrace();
         }
         while (true) {
-            String messageFromClient;
             try {
-                messageFromClient = clientName + ": " + in.readLine();
+                String messageFromClient = in.readLine();
+                String messageForSendingToAllClients = clientName + " : " + messageFromClient;
                 Message msg = new Message(clientName, messageFromClient);
 
-                new DBTransaction(manager, msg);
+                createDBTransaction(manager, msg);
 
                 synchronized (clientList) {
-                    sendMessageToClients(messageFromClient);
+                    sendMessageToClients(messageForSendingToAllClients);
                 }
             } catch (IOException e) {
                 e.printStackTrace();
@@ -92,6 +92,12 @@ public class Client extends Thread implements Listener {
         }
         history.append("**************************************" + "\n");
         return String.valueOf(history);
+    }
+
+    public void createDBTransaction(EntityManager manager, Message message) {
+        manager.getTransaction().begin();
+        manager.persist(message);
+        manager.getTransaction().commit();
     }
 
     public static void main(String[] args) {
