@@ -19,7 +19,7 @@ public class Client extends Thread implements Listener {
     private BufferedReader in;
     private BufferedWriter out;
     public static List<Client> clientList;
-    private static EntityManagerFactory ef;
+    private static EntityManagerFactory entityManagerFactory;
 
     public Client(Socket connection) {
         socket = connection;
@@ -41,7 +41,7 @@ public class Client extends Thread implements Listener {
     @Override
     public void run() {
         String clientName = null;
-        EntityManager manager = ef.createEntityManager();
+        EntityManager manager = entityManagerFactory.createEntityManager();
         try {
             clientName = in.readLine();
             out.write(sendLastMessages(manager));
@@ -94,24 +94,42 @@ public class Client extends Thread implements Listener {
         return String.valueOf(history);
     }
 
-    public static void main(String[] args) throws Exception {
-        ef = Persistence.createEntityManagerFactory("TestPersistenceUnit");
-        ServerSocket serverSocket = new ServerSocket(SERVER_PORT);
+    public static void main(String[] args) {
+        ServerSocket serverSocket = null;
+        try {
+            entityManagerFactory = Persistence.createEntityManagerFactory("TestPersistenceUnit");
+            serverSocket = new ServerSocket(SERVER_PORT);
+        } catch (IOException e) {
+            entityManagerFactory.close();
+        }
+
         clientList = Collections.synchronizedList(new ArrayList<>());
         ExecutorService pool = Executors.newFixedThreadPool(2);
+
         try {
             while (true) {
-                Socket socket = serverSocket.accept();
+                Socket socket = null;
+                try {
+                    socket = serverSocket.accept();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                Socket finalSocket = socket;
                 pool.execute(() -> {
-                            Client connect = new Client(socket);
-                            clientList.add(connect);
+                            Client client = new Client(finalSocket);
+                            clientList.add(client);
                         }
                 );
                 //Почему при добавлении 3 соединений sout пишет, что pool size = 2?
                 System.out.println(pool.toString());
             }
         } finally {
-            serverSocket.close();
+            try {
+                entityManagerFactory.close();
+                serverSocket.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
     }
 }
@@ -120,3 +138,5 @@ public class Client extends Thread implements Listener {
 //TODO synchronized synchronizedList it's ok? ------ OK
 //TODO listener
 //TODO ExecutorService
+//TODO растащить Connect на части, а то уж больно много логики там в одну кучу сложено.
+//TODO если одного из клиентов завершить, то все остальные в цикле получают null
