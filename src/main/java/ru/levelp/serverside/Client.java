@@ -1,6 +1,5 @@
 package ru.levelp.serverside;
 
-import javax.persistence.EntityManager;
 import javax.persistence.EntityManagerFactory;
 import javax.persistence.Persistence;
 import java.io.*;
@@ -41,10 +40,11 @@ public class Client extends Thread implements Listener {
     @Override
     public void run() {
         String clientName = null;
-        EntityManager manager = entityManagerFactory.createEntityManager();
+        DBUtils dbUtils = new DBUtils(entityManagerFactory);
+
         try {
             clientName = in.readLine();
-            out.write(sendLastMessages(manager));
+            out.write(dbUtils.showHistory());
             out.flush();
 
             synchronized (clientList) {
@@ -57,9 +57,9 @@ public class Client extends Thread implements Listener {
             try {
                 String messageFromClient = in.readLine();
                 String messageForSendingToAllClients = clientName + " : " + messageFromClient;
-                Message msg = new Message(clientName, messageFromClient);
+                Message message = new Message(clientName, messageFromClient);
 
-                createDBTransaction(manager, msg);
+                dbUtils.saveMessage(message);
 
                 synchronized (clientList) {
                     sendMessageToClients(messageForSendingToAllClients);
@@ -83,22 +83,6 @@ public class Client extends Thread implements Listener {
         }
     }
 
-    public String sendLastMessages(EntityManager manager) {
-        List<Message> messageList = manager.createQuery("from Messages ", Message.class).getResultList();
-        StringBuffer history = new StringBuffer();
-        history.append("Last messages in chat: " + "\n");
-        for (Message message : messageList) {
-            history.append(message.getClientName() + ": " + message.getMessage() + "\n");
-        }
-        history.append("**************************************" + "\n");
-        return String.valueOf(history);
-    }
-
-    public void createDBTransaction(EntityManager manager, Message message) {
-        manager.getTransaction().begin();
-        manager.persist(message);
-        manager.getTransaction().commit();
-    }
 
     public static void main(String[] args) {
         ServerSocket serverSocket = null;
