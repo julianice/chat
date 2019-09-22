@@ -32,6 +32,10 @@ public class DBUtils {
         history.append("**************************************" + "\n");
         return String.valueOf(history);
     }
+
+    public void closeDBmanager(){
+        manager.close();
+    }
 }
 
 

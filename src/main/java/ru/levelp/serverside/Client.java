@@ -5,6 +5,7 @@ import javax.persistence.Persistence;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -55,7 +56,9 @@ public class Client extends Thread implements Listener {
         }
         while (true) {
             try {
-                String messageFromClient = in.readLine();
+                String messageFromClient;
+                messageFromClient = in.readLine();
+
                 String messageForSendingToAllClients = clientName + " : " + messageFromClient;
                 Message message = new Message(clientName, messageFromClient);
 
@@ -65,21 +68,29 @@ public class Client extends Thread implements Listener {
                     sendMessageToClients(messageForSendingToAllClients);
                 }
             } catch (IOException e) {
-                e.printStackTrace();
+                try {
+                    socket.close();
+                    dbUtils.closeDBmanager();
+                } catch (IOException e1) {
+                    e1.printStackTrace();
+                }
+                //TODO delete client from List.
+                break;
             }
         }
+        dbUtils.closeDBmanager();
     }
 
     @Override
     public void sendMessageToClients(String message) {
         for (Client client : clientList) {
             if (!client.equals(this))
-            try {
-                client.out.write(message + "\n");
-                client.out.flush();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+                try {
+                    client.out.write(message + "\n");
+                    client.out.flush();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
         }
     }
 
@@ -130,3 +141,9 @@ public class Client extends Thread implements Listener {
 //TODO ExecutorService
 //TODO растащить Connect на части, а то уж больно много логики там в одну кучу сложено.
 //TODO если одного из клиентов завершить, то все остальные в цикле получают null
+//TODO 9. Если произошла ошибка, то мало её напечатать: неплохо бы разорвать цикл чтения сообщений от пользователя.
+// (частично сделано, надо добавить удаление клиента из списка)
+
+//7. synchronized (connectList) само по себе могло бы быть правильно, но внутри вызывается метод, который делает ввод-вывод по сети,
+// который потенциально может зависнуть и тогда весь сервер "зависнет" и никто не сможет ничего писать
+// или подключаться из-за одного клиента с плохой связью.
