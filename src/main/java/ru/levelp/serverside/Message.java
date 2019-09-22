@@ -1,4 +1,4 @@
-package ru.levelp;
+package ru.levelp.serverside;
 
 import lombok.Data;
 

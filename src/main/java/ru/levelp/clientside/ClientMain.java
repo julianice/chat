@@ -1,18 +1,18 @@
-package ru.levelp;
+package ru.levelp.clientside;
 
 import java.io.*;
 import java.net.Socket;
 
-import static ru.levelp.Connect.SERVER_PORT;
+import static ru.levelp.serverside.Client.SERVER_PORT;
 
-public class Client {
+public class ClientMain {
     private Socket socket;
     private BufferedWriter out;
     private BufferedReader in;
     private BufferedReader keyboardInput;
     private String name;
 
-    public Client(Socket connection) {
+    public ClientMain(Socket connection) {
         socket = connection;
         try {
             keyboardInput = new BufferedReader(new InputStreamReader(System.in));
@@ -37,6 +37,7 @@ public class Client {
         }
     }
 
+    //TODO rename class
     class ReadThread extends Thread {
         @Override
         public void run() {
@@ -84,6 +85,6 @@ public class Client {
 
     public static void main(String[] args) throws IOException {
         Socket socket = new Socket("localhost", SERVER_PORT);
-        new Client(socket);
+        new ClientMain(socket);
     }
 }

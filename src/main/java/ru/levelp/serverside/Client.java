@@ -1,4 +1,4 @@
-package ru.levelp;
+package ru.levelp.serverside;
 
 import javax.persistence.EntityManager;
 import javax.persistence.EntityManagerFactory;
@@ -13,15 +13,15 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 
-public class Connect extends Thread implements Listener {
+public class Client extends Thread implements Listener {
     public static final int SERVER_PORT = 9994;
     private Socket socket;
     private BufferedReader in;
     private BufferedWriter out;
-    public static List<Connect> connectList;
+    public static List<Client> clientList;
     private static EntityManagerFactory ef;
 
-    public Connect(Socket connection) {
+    public Client(Socket connection) {
         socket = connection;
         try {
             in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
@@ -40,30 +40,29 @@ public class Connect extends Thread implements Listener {
 
     @Override
     public void run() {
-        String name = null;
+        String clientName = null;
         EntityManager manager = ef.createEntityManager();
         try {
-            name = in.readLine();
+            clientName = in.readLine();
             out.write(sendLastMessages(manager));
             out.flush();
 
-            synchronized (connectList) {
-                sendMessage(name + " joined us");
+            synchronized (clientList) {
+                sendMessageToClients(clientName + " joined us");
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
         while (true) {
-            String message;
+            String messageFromClient;
             try {
-                message = in.readLine();
-                String send = name + ": " + message;
-                Message msg = new Message(name, message);
+                messageFromClient = clientName + ": " + in.readLine();
+                Message msg = new Message(clientName, messageFromClient);
 
                 new DBTransaction(manager, msg);
 
-                synchronized (connectList) {
-                    sendMessage(send);
+                synchronized (clientList) {
+                    sendMessageToClients(messageFromClient);
                 }
             } catch (IOException e) {
                 e.printStackTrace();
@@ -72,12 +71,12 @@ public class Connect extends Thread implements Listener {
     }
 
     @Override
-    public void sendMessage(String msg) {
-        for (Connect connect : connectList) {
-            if (!connect.equals(this))
+    public void sendMessageToClients(String message) {
+        for (Client client : clientList) {
+            if (!client.equals(this))
             try {
-                connect.out.write(msg + "\n");
-                connect.out.flush();
+                client.out.write(message + "\n");
+                client.out.flush();
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -98,14 +97,14 @@ public class Connect extends Thread implements Listener {
     public static void main(String[] args) throws Exception {
         ef = Persistence.createEntityManagerFactory("TestPersistenceUnit");
         ServerSocket serverSocket = new ServerSocket(SERVER_PORT);
-        connectList = Collections.synchronizedList(new ArrayList<>());
+        clientList = Collections.synchronizedList(new ArrayList<>());
         ExecutorService pool = Executors.newFixedThreadPool(2);
         try {
             while (true) {
                 Socket socket = serverSocket.accept();
                 pool.execute(() -> {
-                            Connect connect = new Connect(socket);
-                            connectList.add(connect);
+                            Client connect = new Client(socket);
+                            clientList.add(connect);
                         }
                 );
                 //Почему при добавлении 3 соединений sout пишет, что pool size = 2?
@@ -119,8 +118,5 @@ public class Connect extends Thread implements Listener {
 
 //TODO handle exceptions
 //TODO synchronized synchronizedList it's ok? ------ OK
-//TODO DB  ----- ok
 //TODO listener
-//TODO do not send to yourself
 //TODO ExecutorService
-//TODO сохранять в БД и вытаскивать при старте записи
