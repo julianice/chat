@@ -23,9 +23,10 @@ public class DBUtils {
     }
 
     public String showHistory() {
-        List<Message> messageList = manager.createQuery("from Messages ", Message.class).getResultList();
+        List<Message> messageList = manager.createQuery("SELECT m from Messages m ORDER BY m.id DESC", Message.class)
+                .setMaxResults(10).getResultList();
         StringBuffer history = new StringBuffer();
-        history.append("Last messages in chat: " + "\n");
+        history.append("Last 10 messages in chat: " + "\n");
         for (Message message : messageList) {
             history.append(message.getClientName() + ": " + message.getMessage() + "\n");
         }
