@@ -5,7 +5,6 @@ import javax.persistence.Persistence;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.net.SocketException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -13,7 +12,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 
-public class Client extends Thread implements Listener {
+public class Client implements Runnable, Listener {
     public static final int SERVER_PORT = 9994;
     private Socket socket;
     private BufferedReader in;
@@ -35,50 +34,51 @@ public class Client extends Thread implements Listener {
                 e1.printStackTrace();
             }
         }
-        start();
     }
 
     @Override
     public void run() {
-        String clientName = null;
         DBUtils dbUtils = new DBUtils(entityManagerFactory);
-
         try {
-            clientName = in.readLine();
+            String clientName = in.readLine();
             out.write(dbUtils.showHistory());
             out.flush();
-
             synchronized (clientList) {
                 sendMessageToClients(clientName + " joined us");
             }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        while (true) {
-            try {
-                String messageFromClient;
-                messageFromClient = in.readLine();
 
-                String messageForSendingToAllClients = clientName + " : " + messageFromClient;
-                Message message = new Message(clientName, messageFromClient);
-
-                dbUtils.saveMessage(message);
-
-                synchronized (clientList) {
-                    sendMessageToClients(messageForSendingToAllClients);
-                }
-            } catch (IOException e) {
+            while (true) {
                 try {
-                    socket.close();
-                    dbUtils.closeDBmanager();
-                } catch (IOException e1) {
-                    e1.printStackTrace();
+                    String messageFromClient = in.readLine();
+                    String messageForSendingToAllClients = clientName + " : " + messageFromClient;
+                    Message message = new Message(clientName, messageFromClient);
+                    dbUtils.saveMessage(message);
+
+                    synchronized (clientList) {
+                        sendMessageToClients(messageForSendingToAllClients);
+                    }
+                } catch (IOException e) {
+                    clientList.remove(this);
+                    //не уменьшается размер clientList при отключении клиента на этапе написания им сообщения.
+                    dbUtils.closeDBManager();
+                    try {
+                        socket.close();
+                    } catch (IOException e1) {
+                        e1.printStackTrace();
+                    }
+                    break;
                 }
-                //TODO delete client from List.
-                break;
+            }
+            dbUtils.closeDBManager();
+        } catch (IOException e) {
+            clientList.remove(this);
+            dbUtils.closeDBManager();
+            try {
+                socket.close();
+            } catch (IOException e1) {
+                e1.printStackTrace();
             }
         }
-        dbUtils.closeDBmanager();
     }
 
     @Override
@@ -103,26 +103,19 @@ public class Client extends Thread implements Listener {
         } catch (IOException e) {
             entityManagerFactory.close();
         }
-
         clientList = Collections.synchronizedList(new ArrayList<>());
-        ExecutorService pool = Executors.newFixedThreadPool(2);
-
+        ExecutorService pool = Executors.newFixedThreadPool(4);
         try {
             while (true) {
+                Client client;
                 Socket socket = null;
                 try {
                     socket = serverSocket.accept();
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
-                Socket finalSocket = socket;
-                pool.execute(() -> {
-                            Client client = new Client(finalSocket);
-                            clientList.add(client);
-                        }
-                );
-                //Почему при добавлении 3 соединений sout пишет, что pool size = 2?
-                System.out.println(pool.toString());
+                pool.submit(client = new Client(socket));
+                clientList.add(client);
             }
         } finally {
             try {
@@ -135,15 +128,9 @@ public class Client extends Thread implements Listener {
     }
 }
 
-//TODO handle exceptions
-//TODO synchronized synchronizedList it's ok? ------ OK
-//TODO listener
-//TODO ExecutorService
-//TODO растащить Connect на части, а то уж больно много логики там в одну кучу сложено.
-//TODO если одного из клиентов завершить, то все остальные в цикле получают null
-//TODO 9. Если произошла ошибка, то мало её напечатать: неплохо бы разорвать цикл чтения сообщений от пользователя.
-// (частично сделано, надо добавить удаление клиента из списка)
 
 //7. synchronized (connectList) само по себе могло бы быть правильно, но внутри вызывается метод, который делает ввод-вывод по сети,
 // который потенциально может зависнуть и тогда весь сервер "зависнет" и никто не сможет ничего писать
 // или подключаться из-за одного клиента с плохой связью.
+//12. Вообще, было бы очень хорошо растащить Connect на части, а то уж больно много логики там в одну кучу сложено.
+//TODO last 10 messages

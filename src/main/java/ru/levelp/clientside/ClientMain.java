@@ -19,8 +19,8 @@ public class ClientMain {
             in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             out = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
             setName();
-            new ReadThread().start();
-            new WriteThread().start();
+            new ReadMessageFromServerSide().start();
+            new WriteMessageToServerSide().start();
         } catch (IOException e) {
             closeClient();
         }
@@ -37,18 +37,17 @@ public class ClientMain {
         }
     }
 
-    //TODO rename class
-    class ReadThread extends Thread {
+    class ReadMessageFromServerSide extends Thread {
         @Override
         public void run() {
-            String str;
+            String message;
             try {
                 while (true) {
-                    str = in.readLine();
-                    if (str == null) {
+                    message = in.readLine();
+                    if (message == null) {
                         closeClient();
                     } else
-                        System.out.println(str);
+                        System.out.println(message);
                 }
             } catch (IOException e) {
                 closeClient();
@@ -56,14 +55,14 @@ public class ClientMain {
         }
     }
 
-    class WriteThread extends Thread {
+    class WriteMessageToServerSide extends Thread {
         @Override
         public void run() {
             while (true) {
-                String word;
+                String message;
                 try {
-                    word = keyboardInput.readLine();
-                    out.write(word + "\n");
+                    message = keyboardInput.readLine();
+                    out.write(message + "\n");
                     out.flush();
                 } catch (IOException e) {
                     closeClient();
@@ -73,14 +72,14 @@ public class ClientMain {
     }
 
     public void closeClient() {
-            System.out.println("Socket is closed");
-            try {
-                socket.close();
-                in.close();
-                out.close();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+        System.out.println("Socket is closed");
+        try {
+            socket.close();
+            in.close();
+            out.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     public static void main(String[] args) throws IOException {
@@ -88,3 +87,4 @@ public class ClientMain {
         new ClientMain(socket);
     }
 }
+//TODO exit command

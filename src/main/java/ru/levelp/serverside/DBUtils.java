@@ -33,7 +33,7 @@ public class DBUtils {
         return String.valueOf(history);
     }
 
-    public void closeDBmanager(){
+    public void closeDBManager(){
         manager.close();
     }
 }
