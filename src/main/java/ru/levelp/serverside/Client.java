@@ -5,9 +5,7 @@ import javax.persistence.Persistence;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -17,7 +15,7 @@ public class Client implements Runnable, Listener {
     private Socket socket;
     private BufferedReader in;
     private BufferedWriter out;
-    public static List<Client> clientList;
+    public static CopyOnWriteArrayList<Client> clientList;
     private static EntityManagerFactory entityManagerFactory;
 
     public Client(Socket connection) {
@@ -43,9 +41,7 @@ public class Client implements Runnable, Listener {
             String clientName = in.readLine();
             out.write(dbUtils.showHistory());
             out.flush();
-            synchronized (clientList) {
-                sendMessageToClients(clientName + " joined us");
-            }
+            sendMessageToClients(clientName + " joined us");
 
             while (true) {
                 try {
@@ -53,10 +49,7 @@ public class Client implements Runnable, Listener {
                     String messageForSendingToAllClients = clientName + " : " + messageFromClient;
                     Message message = new Message(clientName, messageFromClient);
                     dbUtils.saveMessage(message);
-
-                    synchronized (clientList) {
-                        sendMessageToClients(messageForSendingToAllClients);
-                    }
+                    sendMessageToClients(messageForSendingToAllClients);
                 } catch (IOException e) {
                     clientList.remove(this);
                     //не уменьшается размер clientList при отключении клиента на этапе написания им сообщения.
@@ -103,7 +96,7 @@ public class Client implements Runnable, Listener {
         } catch (IOException e) {
             entityManagerFactory.close();
         }
-        clientList = Collections.synchronizedList(new ArrayList<>());
+        clientList = new CopyOnWriteArrayList();
         ExecutorService pool = Executors.newFixedThreadPool(4);
         try {
             while (true) {
@@ -128,9 +121,5 @@ public class Client implements Runnable, Listener {
     }
 }
 
-
-//7. synchronized (connectList) само по себе могло бы быть правильно, но внутри вызывается метод, который делает ввод-вывод по сети,
-// который потенциально может зависнуть и тогда весь сервер "зависнет" и никто не сможет ничего писать
-// или подключаться из-за одного клиента с плохой связью.
 //12. Вообще, было бы очень хорошо растащить Connect на части, а то уж больно много логики там в одну кучу сложено.
 //TODO last 10 messages
