@@ -46,7 +46,7 @@ public class Client implements Runnable, Listener {
         }
 
         if (clientName == null) {
-            System.out.println(clientList.remove(this));
+            clientList.remove(this);
             return;
         }
 
