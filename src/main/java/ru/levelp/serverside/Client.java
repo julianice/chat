@@ -37,41 +37,39 @@ public class Client implements Runnable, Listener {
     @Override
     public void run() {
         DBUtils dbUtils = new DBUtils(entityManagerFactory);
+        String clientName = null;
         try {
-            String clientName = in.readLine();
+            clientName = in.readLine();
             out.write(dbUtils.showHistory());
             out.flush();
-            sendMessageToClients(clientName + " joined us");
-
-            while (true) {
-                try {
-                    String messageFromClient = in.readLine();
-                    String messageForSendingToAllClients = clientName + " : " + messageFromClient;
-                    Message message = new Message(clientName, messageFromClient);
-                    dbUtils.saveMessage(message);
-                    sendMessageToClients(messageForSendingToAllClients);
-                } catch (IOException e) {
-                    clientList.remove(this);
-                    //не уменьшается размер clientList при отключении клиента на этапе написания им сообщения.
-                    dbUtils.closeDBManager();
-                    try {
-                        socket.close();
-                    } catch (IOException e1) {
-                        e1.printStackTrace();
-                    }
-                    break;
-                }
-            }
-            dbUtils.closeDBManager();
         } catch (IOException e) {
-            clientList.remove(this);
-            dbUtils.closeDBManager();
-            try {
-                socket.close();
-            } catch (IOException e1) {
-                e1.printStackTrace();
-            }
         }
+
+        if (clientName == null) {
+            System.out.println(clientList.remove(this));
+            return;
+        }
+
+        sendMessageToClients(clientName + " joined us");
+
+        while (true) {
+            String messageFromClient = null;
+            try {
+                messageFromClient = in.readLine();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            if (messageFromClient == null) {
+                clientList.remove(this);
+                dbUtils.closeDBManager();
+                break;
+            }
+            String messageForSendingToAllClients = clientName + " : " + messageFromClient;
+            Message message = new Message(clientName, messageFromClient);
+            dbUtils.saveMessage(message);
+            sendMessageToClients(messageForSendingToAllClients);
+        }
+        dbUtils.closeDBManager();
     }
 
     @Override
